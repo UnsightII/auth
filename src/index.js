@@ -29,6 +29,23 @@ app.get('/', (req, res) => {
   res.json({ message: 'Auth Login & Protect API is running.' });
 });
 
+// Every error leaves as JSON. express.json() rejects a malformed body with an
+// HTML page by default, which would break the API's JSON-only contract.
+app.use((err, req, res, next) => {
+  if (err?.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Invalid JSON body' });
+  }
+
+  const status = err?.status ?? 500;
+  const message = status === 500 ? 'Internal server error' : err.message;
+
+  if (status === 500) {
+    console.error(err);
+  }
+
+  return res.status(status).json({ error: message });
+});
+
 // Confirms the Supabase project is actually reachable before we declare success.
 async function pingSupabase() {
   const response = await fetch(`${process.env.SUPABASE_URL}/auth/v1/health`, {
