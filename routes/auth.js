@@ -1,5 +1,6 @@
 const express = require('express');
 const supabase = require('../supabaseClient');
+const { requireAuth } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -40,6 +41,23 @@ router.post('/login', async (req, res) => {
     access_token: data.session.access_token,
     refresh_token: data.session.refresh_token,
   });
+});
+
+// POST /auth/logout - protected by requireAuth, so an invalid token is rejected
+// before this handler ever runs.
+router.post('/logout', requireAuth, async (req, res) => {
+  // supabase.auth.signOut() reads the token from a locally stored session, which
+  // a stateless server does not have. admin.signOut(jwt, scope) is the call that
+  // signOut() itself makes internally: it presents the caller's JWT to
+  // POST /auth/v1/logout. 'local' revokes this session only - 'global' would need
+  // a service_role key.
+  const { error } = await supabase.auth.admin.signOut(req.accessToken, 'local');
+
+  if (error) {
+    return res.status(400).json({ error: 'Sign out failed' });
+  }
+
+  return res.status(204).send();
 });
 
 module.exports = router;
