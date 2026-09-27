@@ -1,4 +1,6 @@
 const express = require('express');
+const swaggerUi = require('swagger-ui-express');
+const openapi = require('../openapi.json');
 
 // Boot-time side effect: initializes the Supabase client from .env and
 // exits with a clear message if the environment variables are missing.
@@ -15,12 +17,33 @@ app.use('/auth', require('./routes/auth'));
 // API routes (/public/info)
 app.use('/public', require('./routes/public'));
 
-// API routes (/protected/profile)
+// API routes (/protected/profile, /protected/dashboard)
 app.use('/protected', require('./routes/protected'));
+
+// Interactive API docs, with the Authorize padlock wired to the bearer scheme
+// declared in openapi.json. The spec is read from disk, so /docs always matches it.
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapi));
 
 // Smoke-test route: proves the server itself is up.
 app.get('/', (req, res) => {
   res.json({ message: 'Auth Login & Protect API is running.' });
+});
+
+// Every error leaves as JSON. express.json() rejects a malformed body with an
+// HTML page by default, which would break the API's JSON-only contract.
+app.use((err, req, res, next) => {
+  if (err?.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Invalid JSON body' });
+  }
+
+  const status = err?.status ?? 500;
+  const message = status === 500 ? 'Internal server error' : err.message;
+
+  if (status === 500) {
+    console.error(err);
+  }
+
+  return res.status(status).json({ error: message });
 });
 
 // Confirms the Supabase project is actually reachable before we declare success.
