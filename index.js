@@ -9,6 +9,9 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 
+// API routes (/auth/signup, /auth/login - more routers arrive in later stages)
+app.use('/auth', require('./routes/auth'));
+
 // Smoke-test route: proves the server itself is up.
 app.get('/', (req, res) => {
   res.json({ message: 'Auth Login & Protect API is running.' });
